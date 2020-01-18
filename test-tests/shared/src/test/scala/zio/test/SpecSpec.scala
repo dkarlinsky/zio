@@ -1,9 +1,9 @@
 package zio.test
 
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
+import zio.test.Assertion._
 import zio.test.TestAspect.ifEnvSet
 import zio.test.TestUtils._
-import zio.{ Ref, ZIO, ZManaged }
+import zio.{ Ref, ZIO, ZManaged, UIO }
 
 object SpecSpec extends ZIOBaseSpec {
 
@@ -38,6 +38,29 @@ object SpecSpec extends ZIOBaseSpec {
               }
           result <- ref.get
         } yield assert(result)(isTrue)
+      },
+      testM("preserves test structure on test failure") {
+        val spec = suite("Suite1")(
+          testM("env = true") {
+            assertM(ZIO.environment[Boolean])(isTrue)
+          },
+          testM("env = false") {
+            assertM(ZIO.environment[Boolean])(isFalse)
+          }
+        )
+
+        for {
+          executed <- execute {
+            spec.provideManagedShared {
+              ZManaged.make(UIO(true))(_ => ZIO.unit)
+            }
+          }
+          result <- TestUtils.exectuedToMap(executed)
+        } yield {
+          println(result)
+          assert(result.get("Suite1::env = true"))(isSome(isRight(Assertion.anything))) &&
+           assert(result.get("Suite1::env = false"))(isSome(isLeft(Assertion.anything)))
+        }
       }
     ),
     suite("only")(

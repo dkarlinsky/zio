@@ -382,7 +382,6 @@ object FailureRenderer {
 
   def renderTestFailure(label: String, testResult: TestResult): UIO[Message] =
     testResult.run.flatMap(
-      _.failures.fold(UIO.succeed(Message()))(
         _.fold(
           details =>
             renderFailure(label, 0, details)
@@ -390,7 +389,6 @@ object FailureRenderer {
         )(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
           .map(_.rendered)
           .map(Message.apply)
-      )
     )
 
   private def rendered[T](
